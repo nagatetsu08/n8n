@@ -1,0 +1,46 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: always
+    command: -p ${DB_PORT}
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    volumes:
+      - db_storage:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -p ${DB_PORT} -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  n8n:
+    image: n8nio/n8n:latest
+    restart: always
+    ports:
+      - "5678:5678"
+    environment:
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=db
+      - DB_POSTGRESDB_PORT=${DB_PORT}
+      - DB_POSTGRESDB_DATABASE=${POSTGRES_DB}
+      - DB_POSTGRESDB_USER=${POSTGRES_USER}
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
+      - N8N_HOST=${SUBDOMAIN}.${DOMAIN_NAME}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=https
+      - NODE_ENV=production
+      - WEBHOOK_URL=https://${SUBDOMAIN}.${DOMAIN_NAME}/
+      - N8N_SECURE_COOKIE=true
+      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE}
+    volumes:
+      - n8n_storage:/home/node/.n8n
+      - ./n8n-workflows:/home/node/n8n-workflows
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db_storage:
+  n8n_storage:

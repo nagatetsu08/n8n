@@ -1,0 +1,242 @@
+[{
+    "updatedAt": "2026-01-21T14:07:16.592Z",
+    "createdAt": "2026-01-21T13:14:20.638Z",
+    "id": "REPLACED_WORKFLOW_ID",
+    "name": "Sentiment Anlysis",
+    "description": null,
+    "active": false,
+    "isArchived": false,
+    "nodes": [{
+        "parameters": {
+            "formTitle": "商品レビュー",
+            "formDescription": "レビューをしたい商品を選択し、使用した感想を書いてください",
+            "formFields": {
+                "values": [{
+                    "fieldLabel": "商品",
+                    "fieldType": "dropdown",
+                    "fieldName": "product",
+                    "fieldOptions": {
+                        "values": [{
+                            "option": "商品A"
+                        }, {
+                            "option": "商品B"
+                        }, {
+                            "option": "商品C"
+                        }]
+                    }
+                }, {
+                    "fieldLabel": "感想",
+                    "fieldType": "textarea",
+                    "fieldName": "impression",
+                    "placeholder": "デザインがよかった"
+                }]
+            },
+            "options": {}
+        },
+        "type": "n8n-nodes-base.formTrigger",
+        "typeVersion": 2.5,
+        "position": [-448, -128],
+        "id": "834986f6-3c6e-46f3-a6ee-cf87bafd2158",
+        "name": "On form submission",
+        "webhookId": "REPLACED_WEBHOOK_ID"
+    }, {
+        "parameters": {
+            "promptType": "define",
+            "text": "={{ $json.impression }}",
+            "hasOutputParser": true,
+            "messages": {
+                "messageValues": [{
+                    "message": "=あなたは感情分析家です。\n\n受け取った感想から感情を分析し、以下３つのタイプのいずれかを返してください\n\n- 良い\n- 普通\n- 悪い"
+                }]
+            },
+            "batching": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.chainLlm",
+        "typeVersion": 1.9,
+        "position": [-208, -48],
+        "id": "fe066036-2fd3-4f93-9a01-b1087df0cf98",
+        "name": "Basic LLM Chain"
+    }, {
+        "parameters": {
+            "model": {
+                "__rl": true,
+                "mode": "list",
+                "value": "gpt-4.1-mini"
+            },
+            "builtInTools": {},
+            "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+        "typeVersion": 1.3,
+        "position": [-336, 80],
+        "id": "1b9be44d-d760-46eb-91c7-e59b934d429e",
+        "name": "OpenAI Chat Model",
+        "credentials": {
+            "openAiApi": {
+                "id": "REPLACED_OPENAI_CRED_ID",
+                "name": "OpenAi account"
+            }
+        }
+    }, {
+        "parameters": {
+            "mode": "combine",
+            "combineBy": "combineByPosition",
+            "options": {}
+        },
+        "type": "n8n-nodes-base.merge",
+        "typeVersion": 3.2,
+        "position": [128, -144],
+        "id": "f57f6c6e-6654-48a9-8578-68a7cbb19f4e",
+        "name": "Merge"
+    }, {
+        "parameters": {
+            "operation": "append",
+            "documentId": {
+                "__rl": true,
+                "value": "REPLACED_SPREADSHEET_ID",
+                "mode": "list",
+                "cachedResultName": "impressions",
+                "cachedResultUrl": ""
+            },
+            "sheetName": {
+                "__rl": true,
+                "value": "gid=0",
+                "mode": "list",
+                "cachedResultName": "シート1",
+                "cachedResultUrl": ""
+            },
+            "columns": {
+                "mappingMode": "defineBelow",
+                "value": {
+                    "商品": "={{ $json.product }}",
+                    "感想": "={{ $json.impression }}",
+                    "印象": "={{ $json.text }}",
+                    "投稿日時": "={{ DateTime.fromISO($json.submittedAt).toFormat('yyyy-MM-dd HH:mm') }}"
+                },
+                "matchingColumns": ["product"],
+                "schema": [{
+                    "id": "商品",
+                    "displayName": "商品",
+                    "required": false,
+                    "defaultMatch": false,
+                    "display": true,
+                    "type": "string",
+                    "canBeUsedToMatch": true,
+                    "removed": false
+                }, {
+                    "id": "印象",
+                    "displayName": "印象",
+                    "required": false,
+                    "defaultMatch": false,
+                    "display": true,
+                    "type": "string",
+                    "canBeUsedToMatch": true,
+                    "removed": false
+                }, {
+                    "id": "感想",
+                    "displayName": "感想",
+                    "required": false,
+                    "defaultMatch": false,
+                    "display": true,
+                    "type": "string",
+                    "canBeUsedToMatch": true,
+                    "removed": false
+                }, {
+                    "id": "投稿日時",
+                    "displayName": "投稿日時",
+                    "required": false,
+                    "defaultMatch": false,
+                    "display": true,
+                    "type": "string",
+                    "canBeUsedToMatch": true,
+                    "removed": false
+                }]
+            },
+            "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [304, -144],
+        "id": "dded8e16-96e0-4e73-bf79-e926806a1d68",
+        "name": "Append row in sheet",
+        "credentials": {
+            "googleSheetsOAuth2Api": {
+                "id": "REPLACED_GOOGLE_CRED_ID",
+                "name": "Google Sheets account"
+            }
+        }
+    }],
+    "connections": {
+        "On form submission": {
+            "main": [
+                [{
+                    "node": "Basic LLM Chain",
+                    "type": "main",
+                    "index": 0
+                }, {
+                    "node": "Merge",
+                    "type": "main",
+                    "index": 0
+                }]
+            ]
+        },
+        "OpenAI Chat Model": {
+            "ai_languageModel": [
+                [{
+                    "node": "Basic LLM Chain",
+                    "type": "ai_languageModel",
+                    "index": 0
+                }]
+            ]
+        },
+        "Basic LLM Chain": {
+            "main": [
+                [{
+                    "node": "Merge",
+                    "type": "main",
+                    "index": 1
+                }]
+            ]
+        },
+        "Merge": {
+            "main": [
+                [{
+                    "node": "Append row in sheet",
+                    "type": "main",
+                    "index": 0
+                }]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "availableInMCP": false
+    },
+    "staticData": null,
+    "meta": {
+        "templateCredsSetupCompleted": true
+    },
+    "pinData": {},
+    "versionId": "REPLACED_VERSION_ID",
+    "activeVersionId": null,
+    "versionCounter": 8,
+    "triggerCount": 0,
+    "tags": [],
+    "shared": [{
+        "updatedAt": "2026-01-21T13:14:20.638Z",
+        "createdAt": "2026-01-21T13:14:20.638Z",
+        "role": "workflow:owner",
+        "workflowId": "REPLACED_WORKFLOW_ID",
+        "projectId": "REPLACED_PROJECT_ID",
+        "project": {
+            "updatedAt": "2026-01-17T16:07:02.748Z",
+            "createdAt": "2026-01-17T15:30:19.747Z",
+            "id": "REPLACED_PROJECT_ID",
+            "name": "Dummy User <dummy@example.com>",
+            "type": "personal",
+            "icon": null,
+            "description": null,
+            "creatorId": "REPLACED_CREATOR_ID"
+        }
+    }]
+}]

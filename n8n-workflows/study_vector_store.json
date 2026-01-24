@@ -1,0 +1,182 @@
+[
+  {
+    "updatedAt": "2026-01-24T07:18:14.595Z",
+    "createdAt": "2026-01-21T14:43:45.265Z",
+    "id": "workflow-id-placeholder",
+    "name": "study vectorDB",
+    "description": null,
+    "active": false,
+    "isArchived": false,
+    "nodes": [
+      {
+        "parameters": {
+          "pollTimes": {
+            "item": [{ "mode": "everyMinute" }]
+          },
+          "triggerOn": "specificFolder",
+          "folderToWatch": {
+            "__rl": true,
+            "value": "https://drive.google.com/drive/folders/FOLDER_ID_MASKED",
+            "mode": "url"
+          },
+          "event": "fileCreated",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleDriveTrigger",
+        "typeVersion": 1,
+        "position": [-704, -224],
+        "id": "node-google-drive-trigger",
+        "name": "Google Drive Trigger",
+        "retryOnFail": true,
+        "credentials": {
+          "googleDriveOAuth2Api": { "id": "creds-id-placeholder", "name": "Google Drive account" }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "download",
+          "fileId": { "__rl": true, "value": "={{ $json.id }}", "mode": "id" },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleDrive",
+        "typeVersion": 3,
+        "position": [-464, -224],
+        "id": "node-download-file",
+        "name": "Download file",
+        "retryOnFail": true,
+        "credentials": {
+          "googleDriveOAuth2Api": { "id": "creds-id-placeholder", "name": "Google Drive account" }
+        }
+      },
+      {
+        "parameters": {
+          "mode": "insert",
+          "qdrantCollection": { "__rl": true, "value": "n8n-test", "mode": "list", "cachedResultName": "n8n-test" },
+          "options": { "contentPayloadKey": "text", "metadataPayloadKey": "metadata" }
+        },
+        "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+        "typeVersion": 1.3,
+        "position": [128, -80],
+        "id": "node-qdrant-vector-store",
+        "name": "Qdrant Vector Store",
+        "notesInFlow": false,
+        "credentials": {
+          "qdrantApi": { "id": "creds-id-placeholder", "name": "QdrantApi account" }
+        }
+      },
+      {
+        "parameters": { "options": {} },
+        "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+        "typeVersion": 1.2,
+        "position": [32, 144],
+        "id": "node-embeddings-openai",
+        "name": "Embeddings OpenAI",
+        "retryOnFail": true,
+        "credentials": {
+          "openAiApi": { "id": "creds-id-placeholder", "name": "OpenAi account" }
+        },
+        "onError": "continueRegularOutput"
+      },
+      {
+        "parameters": {
+          "resource": "document",
+          "modelId": { "__rl": true, "value": "models/gemini-2.5-flash", "mode": "list", "cachedResultName": "models/gemini-2.5-flash" },
+          "text": "=添付されたPDFを解析し、以下のルールに従ってすべてのデータをMarkdown形式で抽出してください。\n\nセクション分割: 各セクション（1ページごと、または大きな表の区切り）の冒頭に、必ず以下の形式でメタデータを記述し、その後に内容を続けてください。セクション間は ---PAGE_SPLIT--- で区切ってください。\n\nメタデータ形式: [METADATA: {\"year\": \"YYYY\", \"quarter\": \"QX\"}] ※年度(year)や四半期(quarter)が本文から特定できない場合は \"unknown\" としてください。\n\n文脈の維持: 各セクションの冒頭に、前のセクションから続く重要な文脈があれば、[CONTEXT: ...] という形式で1~2文程度で記述してください。これにより、データが分割されても内容が繋がるようにしてください。\n\n表データの構造維持: すべての表はMarkdown形式で出力してください。その際、各ブロック（分割されたデータ）には、その数値が何を示しているか（項目名や年度など）がわかるよう、必ずヘッダー情報を含めてください。また表はページがわかないようにしてください\n\n表の連続性: 1つの表は可能な限り分割せず、1つのブロック（---PAGE_SPLIT--- の間）に収めてください。\n\nやむを得ず分割する場合: ページを跨いで表が続く場合は、分割後の新しいブロックの冒頭にも必ず「表のヘッダー（項目名）」を再度記述してください。これにより、どのデータも単体で意味が通じるようにしてください。\n\n正確性の徹底: 数値の誤読がないよう慎重に抽出してください。\n\n出力内容: 解説や挨拶は一切含めず、データのみを返してください。\n",
+          "inputType": "binary",
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.googleGemini",
+        "typeVersion": 1.1,
+        "position": [-256, -224],
+        "id": "node-analyze-document",
+        "name": "Analyze document",
+        "retryOnFail": true,
+        "credentials": {
+          "googlePalmApi": { "id": "creds-id-placeholder", "name": "Google Gemini(PaLM) Api account" }
+        }
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "jsCode": "// 1. データの取得\nconst rawContent = $json.content?.parts?.[0]?.text || \"\";\nconst originalName = $node[\"Download file\"].json.originalFilename || \"Unknown\";\nconst fileName = originalName.replace(/\\.[^/.]+$/, \"\");\n\n// 2. Geminiが本文中に書いたメタデータを抽出（あれば）\nconst metaMatch = rawContent.match(/\\[METADATA:\\s*({.*?})\\]/);\nlet extractedMeta = { year: \"unknown\", quarter: \"unknown\" };\n\nif (metaMatch) {\n  try {\n    extractedMeta = JSON.parse(metaMatch[1]);\n  } catch (e) {}\n}\n\n// 3. 分割せず、一つの塊として返す\nreturn {\n  json: {\n    fullText: rawContent.replace(/\\[METADATA:.*?\\]/, \"\").trim(),\n    metadata: {\n      source: fileName,\n      status: \"active\",\n      year: String(extractedMeta.year),\n      quarter: String(extractedMeta.quarter),\n      updated_at: new Date().toISOString()\n    }\n  }\n};"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [-256, 0],
+        "id": "node-js-code",
+        "name": "Code in JavaScript"
+      },
+      {
+        "parameters": {
+          "content": "Inputが文字列だけでなく、図やグラフを含んでいる場合は、AIを使ってMarkdown化したあとjs or pythonでチャンクに分けてVector Storeに格納する。（Vector Store側にDefaultDataLoaderしかないため）"
+        },
+        "type": "n8n-nodes-base.stickyNote",
+        "position": [80, -288],
+        "typeVersion": 1,
+        "id": "note-1"
+      },
+      {
+        "parameters": {
+          "textSplittingMode": "custom",
+          "options": {
+            "metadata": {
+              "metadataValues": [
+                { "name": "source", "value": "={{ $json.metadata.source }}" },
+                { "name": "status", "value": "={{ $json.metadata.status }}" },
+                { "name": "year", "value": "={{ $json.metadata.year }}" },
+                { "name": "quarter", "value": "={{ $json.metadata.quarter }}" },
+                { "name": "updated_at", "value": "={{ $json.metadata.updated_at }}" }
+              ]
+            }
+          }
+        },
+        "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+        "typeVersion": 1.1,
+        "position": [272, 96],
+        "id": "node-data-loader",
+        "name": "Default Data Loader",
+        "retryOnFail": true
+      },
+      {
+        "parameters": { "chunkOverlap": 200, "options": { "splitCode": "markdown" } },
+        "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacterTextSplitter",
+        "typeVersion": 1,
+        "position": [432, 208],
+        "id": "node-text-splitter",
+        "name": "Recursive Character Text Splitter",
+        "retryOnFail": true,
+        "onError": "continueRegularOutput"
+      }
+    ],
+    "connections": {
+      "Google Drive Trigger": { "main": [[{ "node": "Download file", "type": "main", "index": 0 }]] },
+      "Download file": { "main": [[{ "node": "Analyze document", "type": "main", "index": 0 }]] },
+      "Embeddings OpenAI": { "ai_embedding": [[{ "node": "Qdrant Vector Store", "type": "ai_embedding", "index": 0 }]] },
+      "Analyze document": { "main": [[{ "node": "Code in JavaScript", "type": "main", "index": 0 }]] },
+      "Code in JavaScript": { "main": [[{ "node": "Qdrant Vector Store", "type": "main", "index": 0 }]] },
+      "Default Data Loader": { "ai_document": [[{ "node": "Qdrant Vector Store", "type": "ai_document", "index": 0 }]] },
+      "Recursive Character Text Splitter": { "ai_textSplitter": [[{ "node": "Default Data Loader", "type": "ai_textSplitter", "index": 0 }]] }
+    },
+    "settings": { "executionOrder": "v1" },
+    "staticData": null,
+    "meta": { "templateCredsSetupCompleted": true },
+    "pinData": {},
+    "versionId": "version-id-placeholder",
+    "activeVersionId": null,
+    "versionCounter": 47,
+    "triggerCount": 1,
+    "tags": [],
+    "shared": [
+      {
+        "role": "workflow:owner",
+        "workflowId": "workflow-id-placeholder",
+        "projectId": "project-id-placeholder",
+        "project": {
+          "id": "project-id-placeholder",
+          "name": "User Name",
+          "type": "personal"
+        }
+      }
+    ]
+  }
+]

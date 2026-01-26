@@ -34,9 +34,17 @@ services:
       - WEBHOOK_URL=https://${SUBDOMAIN}.${DOMAIN_NAME}/
       - N8N_SECURE_COOKIE=true
       - GENERIC_TIMEZONE=${GENERIC_TIMEZONE}
+      - N8N_DEFAULT_BINARY_DATA_MODE=filesystem
+      - N8N_BLOCK_FS_WRITE_ACCESS=false
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=false
+      - N8N_BLOCK_FS_WRITE_ACCESS_WHITELIST=/tmp/, /home/node/
+      # - N8N_COMMANDS_CAN_EXECUTE=true
+      - NODES_EXCLUDE="[]"
+      - N8N_EXECUTE_COMMAND_ENABLED=true
     volumes:
       - n8n_storage:/home/node/.n8n
       - ./n8n-workflows:/home/node/n8n-workflows
+      - ./logs:/home/node/logs
     depends_on:
       db:
         condition: service_healthy

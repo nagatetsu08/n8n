@@ -1,0 +1,105 @@
+[
+  {
+    "name": "SendRequestPer1Second_Demo",
+    "nodes": [
+      {
+        "parameters": {},
+        "type": "n8n-nodes-base.manualTrigger",
+        "typeVersion": 1,
+        "position": [-432, 80],
+        "id": "manual-trigger-id",
+        "name": "When clicking ‘Execute workflow’"
+      },
+      {
+        "parameters": {
+          "jsCode": "return [\n  { \"name\": \"User A\", \"email\": \"user-a@example.com\", \"role\": \"admin\" },\n  { \"name\": \"User B\", \"email\": \"user-b@example.com\", \"role\": \"user\" },\n  { \"name\": \"User C\", \"email\": \"user-c@example.com\", \"role\": \"user\" }\n]"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [-208, 80],
+        "id": "code-dummy-data",
+        "name": "Dummy Data Generation"
+      },
+      {
+        "parameters": {
+          "options": { "reset": false }
+        },
+        "type": "n8n-nodes-base.splitInBatches",
+        "typeVersion": 3,
+        "position": [16, 80],
+        "id": "loop-items",
+        "name": "Loop Over Items"
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://httpbin.org/post",
+          "sendBody": true,
+          "bodyParameters": {
+            "parameters": [
+              { "name": "name", "value": "={{ $json.name }}" },
+              { "name": "email", "value": "={{ $json.email }}" },
+              { "name": "role", "value": "={{ $json.role }}" }
+            ]
+          }
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.3,
+        "position": [240, 0],
+        "id": "http-request",
+        "name": "HTTP Request"
+      },
+      {
+        "parameters": {
+          "amount": 1,
+          "unit": "seconds"
+        },
+        "type": "n8n-nodes-base.wait",
+        "typeVersion": 1.1,
+        "position": [864, 0],
+        "id": "wait-node",
+        "name": "Wait"
+      },
+      {
+        "parameters": {
+          "jsCode": "const now = new Date();\nconst isoString = now.toISOString(); \nconst dateOnly = isoString.split('T')[0];\nconst payload = $json; \n\nconst lines = [];\nlines.push(`datetime: ${now}`);\nObject.keys(payload).forEach((key) => {\n  const value = payload[key];\n  lines.push(`${key}: ${JSON.stringify(value)}`);\n});\n\nlines.push('');\n\nreturn {\n  log_text: lines.join('\\n'),\n  file_name: `access-log-${dateOnly}.log`\n};"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [464, 0],
+        "id": "make-log-node",
+        "name": "Format Log Text"
+      },
+      {
+        "parameters": {
+          "command": "=printf \"%s\\n\" \"{{ $json.log_text }}\" >> /home/node/logs/{{ $json.file_name }}"
+        },
+        "type": "n8n-nodes-base.executeCommand",
+        "typeVersion": 1,
+        "position": [672, 0],
+        "id": "exec-command",
+        "name": "Write to File"
+      },
+      {
+        "parameters": {
+          "content": "## セキュリティとログ出力のメモ\nv2以降の制限を回避するため Execute Command を使用。\nログは /home/node/logs/ 配下に日付別で保存される。",
+          "height": 200,
+          "width": 350
+        },
+        "type": "n8n-nodes-base.stickyNote",
+        "position": [450, -220],
+        "typeVersion": 1,
+        "id": "memo-note"
+      }
+    ],
+    "connections": {
+      "When clicking ‘Execute workflow’": { "main": [[{ "node": "Dummy Data Generation", "type": "main", "index": 0 }]] },
+      "Dummy Data Generation": { "main": [[{ "node": "Loop Over Items", "type": "main", "index": 0 }]] },
+      "Loop Over Items": { "main": [[], [{ "node": "HTTP Request", "type": "main", "index": 0 }]] },
+      "HTTP Request": { "main": [[{ "node": "Format Log Text", "type": "main", "index": 0 }]] },
+      "Format Log Text": { "main": [[{ "node": "Write to File", "type": "main", "index": 0 }]] },
+      "Write to File": { "main": [[{ "node": "Wait", "type": "main", "index": 0 }]] },
+      "Wait": { "main": [[{ "node": "Loop Over Items", "type": "main", "index": 0 }]] }
+    }
+  }
+]

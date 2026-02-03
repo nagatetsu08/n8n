@@ -1,0 +1,277 @@
+[
+  {
+    "updatedAt": "2026-02-03T16:34:27.121Z",
+    "createdAt": "2026-02-03T13:34:21.401Z",
+    "id": "workflow_id_dummy",
+    "name": "write sheet with webhook",
+    "description": null,
+    "active": false,
+    "isArchived": false,
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "write-imageinfo",
+          "responseMode": "lastNode",
+          "responseData": "allEntries",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2.1,
+        "position": [-992, -128],
+        "id": "node_id_1",
+        "name": "Webhook",
+        "webhookId": "webhook_id_dummy"
+      },
+      {
+        "parameters": {
+          "resource": "fileFolder",
+          "queryString": "=imageinfo-{{ $now.format(\"yyyyMMdd\") }}",
+          "limit": 1,
+          "filter": {
+            "folderId": {
+              "__rl": true,
+              "value": "folder_id_dummy",
+              "mode": "list",
+              "cachedResultName": "imageinfo",
+              "cachedResultUrl": "https://drive.google.com/drive/folders/folder_id_dummy"
+            }
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleDrive",
+        "typeVersion": 3,
+        "position": [-768, -128],
+        "id": "node_id_2",
+        "name": "Search files and folders",
+        "alwaysOutputData": true,
+        "credentials": {
+          "googleDriveOAuth2Api": {
+            "id": "credential_id_dummy_1",
+            "name": "Google Drive account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 3
+            },
+            "conditions": [
+              {
+                "id": "condition_id_1",
+                "leftValue": "={{ $json.id }}",
+                "rightValue": 0,
+                "operator": {
+                  "type": "string",
+                  "operation": "empty",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.3,
+        "position": [-544, -128],
+        "id": "node_id_3",
+        "name": "If"
+      },
+      {
+        "parameters": {
+          "resource": "spreadsheet",
+          "title": "=imageinfo-{{ $now.format(\"yyyyMMdd\") }}",
+          "sheetsUi": {
+            "sheetValues": [{ "title": "Sheet1" }]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [-320, -192],
+        "id": "node_id_4",
+        "name": "Create spreadsheet",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "credential_id_dummy_2",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "move",
+          "fileId": {
+            "__rl": true,
+            "value": "={{ $json.spreadsheetId }}",
+            "mode": "id"
+          },
+          "driveId": {
+            "__rl": true,
+            "value": "My Drive",
+            "mode": "list",
+            "cachedResultName": "My Drive",
+            "cachedResultUrl": "https://drive.google.com/drive/my-drive"
+          },
+          "folderId": {
+            "__rl": true,
+            "value": "folder_id_dummy",
+            "mode": "list",
+            "cachedResultName": "imageinfo",
+            "cachedResultUrl": "https://drive.google.com/drive/folders/folder_id_dummy"
+          }
+        },
+        "type": "n8n-nodes-base.googleDrive",
+        "typeVersion": 3,
+        "position": [-96, -192],
+        "id": "node_id_5",
+        "name": "Move file",
+        "credentials": {
+          "googleDriveOAuth2Api": {
+            "id": "credential_id_dummy_1",
+            "name": "Google Drive account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "content": "file存在チェック\nポイントはsettings => AlwaysOutputをtrueにする（でないとワークフロー止まってしまう）",
+          "height": 240,
+          "width": 246
+        },
+        "type": "n8n-nodes-base.stickyNote",
+        "position": [-848, -208],
+        "typeVersion": 1,
+        "id": "node_id_6",
+        "name": "Sticky Note"
+      },
+      {
+        "parameters": {
+          "assignments": {
+            "assignments": [
+              { "id": "assign_1", "name": "メインメッセージ", "value": "={{ $('Webhook').item.json.body.result.data.main_message }}", "type": "string" },
+              { "id": "assign_2", "name": "その他情報", "value": "={{ $('Webhook').item.json.body.result.data.other_information }}", "type": "string" },
+              { "id": "assign_3", "name": "商品名/サービス名", "value": "={{ $('Webhook').item.json.body.result.data.product_or_service_name }}", "type": "string" },
+              { "id": "assign_4", "name": "消費トークン数", "value": "={{ $('Webhook').item.json.body.result.metadata.usage.total_tokens }}", "type": "number" },
+              { "id": "assign_5", "name": "記入日", "value": "={{ $now.format('yyyy-MM-dd') }}", "type": "string" }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [128, -48],
+        "id": "node_id_7",
+        "name": "Edit Fields"
+      },
+      {
+        "parameters": {
+          "content": "初回作成、追記どちらも変あ分岐をせずに対応できるようにファイルIDの参照方法を工夫",
+          "height": 240,
+          "width": 246
+        },
+        "type": "n8n-nodes-base.stickyNote",
+        "position": [272, -208],
+        "typeVersion": 1,
+        "id": "node_id_8",
+        "name": "Sticky Note1"
+      },
+      {
+        "parameters": {
+          "content": "Append imageinfoの中身\n\n1. ファイルIDの参照\n{{ $node[\"Search files and folders\"].json.id || $node[\"Move file\"]?.json?.id }}\n=>通っていないノードの変数を使うと落ちるので、確実に通る方を最初に評価し、後からIF文内の変数を評価する\n\n2.SheetをByNameにしている理由\nFrom Listから選択にしていると、Move直後はリストに上がってこないことがあるので、参照エラーになる。\nなので、ByNameにしてSheet1に書き込めと定義するとエラーなく通る。",
+          "height": 272,
+          "width": 416
+        },
+        "type": "n8n-nodes-base.stickyNote",
+        "position": [176, 128],
+        "typeVersion": 1,
+        "id": "node_id_9",
+        "name": "Sticky Note2"
+      },
+      {
+        "parameters": {
+          "operation": "append",
+          "documentId": {
+            "__rl": true,
+            "value": "={{ $node[\"Search files and folders\"].json.id || $node[\"Move file\"]?.json?.id }}",
+            "mode": "id"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "=Sheet1",
+            "mode": "name"
+          },
+          "columns": {
+            "mappingMode": "autoMapInputData",
+            "value": {},
+            "matchingColumns": [],
+            "schema": [
+              { "id": "メインメッセージ", "displayName": "メインメッセージ", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+              { "id": "その他情報", "displayName": "その他情報", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+              { "id": "商品名/サービス名", "displayName": "商品名/サービス名", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+              { "id": "消費トークン数", "displayName": "消費トークン数", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+              { "id": "記入日", "displayName": "記入日", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [352, -112],
+        "id": "node_id_10",
+        "name": "Append imageinfo",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "credential_id_dummy_2",
+            "name": "Google Sheets account"
+          }
+        },
+        "onError": "continueRegularOutput"
+      }
+    ],
+    "connections": {
+      "Webhook": { "main": [[{ "node": "Search files and folders", "type": "main", "index": 0 }]] },
+      "Search files and folders": { "main": [[{ "node": "If", "type": "main", "index": 0 }]] },
+      "If": { "main": [[{ "node": "Create spreadsheet", "type": "main", "index": 0 }], [{ "node": "Edit Fields", "type": "main", "index": 0 }]] },
+      "Create spreadsheet": { "main": [[{ "node": "Move file", "type": "main", "index": 0 }]] },
+      "Move file": { "main": [[{ "node": "Edit Fields", "type": "main", "index": 0 }]] },
+      "Edit Fields": { "main": [[{ "node": "Append imageinfo", "type": "main", "index": 0 }]] }
+    },
+    "settings": { "executionOrder": "v1", "availableInMCP": false },
+    "staticData": null,
+    "meta": { "templateCredsSetupCompleted": true },
+    "pinData": {},
+    "versionId": "version_id_dummy",
+    "activeVersionId": null,
+    "versionCounter": 9,
+    "triggerCount": 0,
+    "tags": [],
+    "shared": [
+      {
+        "updatedAt": "2026-02-03T13:34:21.401Z",
+        "createdAt": "2026-02-03T13:34:21.401Z",
+        "role": "workflow:owner",
+        "workflowId": "workflow_id_dummy",
+        "projectId": "project_id_dummy",
+        "project": {
+          "updatedAt": "2026-01-17T16:07:02.748Z",
+          "createdAt": "2026-01-17T15:30:19.747Z",
+          "id": "project_id_dummy",
+          "name": "Dummy Project",
+          "type": "personal",
+          "icon": null,
+          "description": null,
+          "creatorId": "creator_id_dummy"
+        }
+      }
+    ]
+  }
+]
